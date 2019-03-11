@@ -1,0 +1,68 @@
+version: '3.7'
+
+services:
+  db:
+    image: mysql:5.7 
+    secrets:
+      - db_root_password
+      - db_dba_password
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      resources:
+        reservations:
+          memory: 128M
+        limits:
+          memory: 256M
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_USER: dba
+      MYSQL_DATABASE: sis 
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_PASSWORD_FILE: /run/secrets/db_dba_password
+    networks:
+      - appnet
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - type: bind
+        source: /opt/docker/volumes/mysql
+        target: /var/lib/mysql
+    configs:
+      - source: my_cnf
+        target: /etc/mysql/conf.d/my.cnf
+
+  etsis: 
+    image: etsis-apache-php
+    deploy:
+      replicas: 1
+    secrets:
+      - db_root_password
+      - db_dba_password
+    environment:
+      DB_HOST: 'db'
+      DB_USER: 'dba'
+      DB_NAME: 'sis'
+      DB_PASS_FILE: /run/secrets/db_dba_password
+      DB_PORT: 3306
+    networks:
+      - appnet
+    volumes:
+      - /var/docker/edutrac/compose-sis-stack/public_html/:/var/www/html/
+    ports:
+      - 80:80
+
+secrets:
+  db_root_password:
+    external: true
+  db_dba_password:
+    external: true
+
+configs:
+  my_cnf:
+    external: true
+
+networks:
+  appnet:
+    external: true
