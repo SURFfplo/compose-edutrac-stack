@@ -22,6 +22,16 @@ else
   docker swarm init 
   echo docker was a standalone node now running in swarm 
 fi
+echo -e "${green}Done....${nc}"
+
+
+
+echo -e "${yellow}
+# Test if network is running in overlay if not start it
+#############################################################################${nc}"
+docker network ls|grep appnet > /dev/null || docker network create --driver overlay appnet
+sleep 5
+echo -e "${green}Done....${nc}"
 
 
 echo -e "${yellow}
@@ -29,43 +39,54 @@ echo -e "${yellow}
 #############################################################################${nc}"
 echo -e "${green}Choose new database root password: ${nc}"
 read dbrootpwd
-printf $dbrootpwd | docker secret create db_root_password -
+printf $dbrootpwd | docker secret create edutrac_db_root_password -
 echo -e "${green}Done....${nc}"
 
 echo -e "${green}Choose new database dba password: ${nc}"
 read dbdbapwd
-printf $dbdbapwd | docker secret create db_dba_password -
+printf $dbdbapwd | docker secret create edutrac_db_dba_password -
 echo -e "${green}Done....${nc}"
 
 
 echo -e "${yellow}
-# Build first container 
+# Check if sis containter is available and build if needed
 #############################################################################${nc}"
-cd /var/docker/edutrac/image-sis-edutrac
-docker build . -t etsis-apache-php
+DIRECTORY='image-edutrac-sis'
+if [ ! -d ../"$DIRECTORY" ]; then
+  echo "  https://github.com/SURFfplo/"$DIRECTORY".git ../"$DIRECTORY" "
+  git clone https://github.com/SURFfplo/"$DIRECTORY".git ../"$DIRECTORY"
+fi
+docker-compose build etsis
 echo -e "${green}Done....${nc}"
+
 
 
 echo -e "${yellow}
 # Build second container 
 #############################################################################${nc}"
-cd /var/docker/edutrac/image-base-mysql 
-docker pull mysql:5.7
+docker-compose build db
 echo -e "${green}Done....${nc}"
 
 
 echo -e "${yellow}
 # Create config for mysql container 
 #############################################################################${nc}"
-cd /var/docker/edutrac/compose-sis-stack
-docker config create my_cnf /var/docker/edutrac/compose-sis-stack/config_mysql/my.cnf 
+docker config create my_cnf config_mysql/my.cnf 
+echo -e "${green}Done....${nc}"
+
+
+echo -e "${yellow}
+# Create folder structure for mysql container
+#############################################################################${nc}"
+mkdir .data
+mkdir .data/mysql 
 echo -e "${green}Done....${nc}"
 
 
 echo -e "${yellow}
 # Remove original files from host and clone files from SURFfplo 
 #############################################################################${nc}"
-cd /var/docker/edutrac/compose-sis-stack
+cd ../"$DIRECTORY"
 # remove old public_hhtml
 rm -r public_html
 git clone https://github.com/SURFfplo/eduTrac-SIS.git public_html
@@ -76,11 +97,9 @@ echo -e "${green}Done....${nc}"
 echo -e "${yellow}
 # Create the service
 #############################################################################${nc}"
-cd /var/docker/edutrac/compose-sis-stack
+cd ../compose-sis-stack
 docker stack deploy -c docker-compose.yml apps
 echo -e "${green}Done....${nc}"
-
-clear
 
 echo "woit for 15 seconds for containers to fully come up" 
 sleep 30

@@ -31,8 +31,8 @@ echo -e "${green}Done....${nc}"
 echo -e "${yellow}
 # Remove current secrets and configs
 #############################################################################${nc}"
-docker secret rm $(docker secret ls -q)
-docker config rm $(docker config ls -q)
+docker secret rm $(docker secret ls --filter name=edutrac -q)
+docker config rm $(docker config ls --filter name=cnf -q)
 echo -e "${green}Done....${nc}"
 
 
